@@ -6,24 +6,13 @@
   <title>BODYBOOM SPINNING 자리 예약</title>
   <style>
     body {
-      background: #fff;
-      color: #000;
       font-family: sans-serif;
-    }
-    h2 {
-      text-align: center;
-      margin-top: 20px;
-    }
-    #countdown {
-      text-align: center;
-      font-size: 1rem;
-      color: #d32f2f;
-      margin-top: -10px;
-      margin-bottom: 10px;
+      background-color: #fff;
+      color: #000;
     }
     #container {
       max-width: 400px;
-      margin: 0 auto;
+      margin: 20px auto;
       display: flex;
       flex-direction: column;
       gap: 15px;
@@ -75,22 +64,31 @@
       word-break: keep-all;
       white-space: nowrap;
     }
-    .notice {
-      font-size: 0.8rem;
+    thead {
+      background-color: #f0f0f0;
+    }
+    #countdown {
       text-align: center;
-      margin-top: 20px;
-      color: #555;
-      line-height: 1.5;
+      margin-bottom: 10px;
+      font-size: 1rem;
+      color: #d32f2f;
+    }
+    #notice {
+      margin: 20px auto;
+      width: 90%;
+      font-size: 0.9rem;
+      color: #333;
     }
   </style>
 </head>
 <body>
 
-  <h2>BODYBOOM SPINNING<br />자리 예약</h2>
-  <div id="countdown">예약 가능 시간을 계산 중입니다...</div>
+  <h2 style="text-align:center;">
+    BODYBOOM SPINNING<br />자리 예약
+  </h2>
+  <div id="countdown"></div>
   <div id="container"></div>
 
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
@@ -107,7 +105,9 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
+
     const container = document.getElementById("container");
+    const countdownEl = document.getElementById("countdown");
 
     const seatRows = [
       [1, 2, 3, 4, 5],
@@ -123,75 +123,57 @@
 
     function getNextReservationTime() {
       const now = new Date();
-      const day = now.getDay(); // 0~6
-      const date = new Date(now);
-      let target;
+      const day = now.getDay(); // 0(일)~6(토)
+      const base = new Date(now);
 
-      if (day >= 1 && day <= 5) {
-        // 평일 오전
-        const am = new Date(date.setHours(9, 30, 0, 0));
-        if (now < am) return am;
+      // 오전 9:30
+      const morning = new Date(base.setHours(9, 30, 0, 0));
+      if (now < morning) return morning;
 
-        // 오후 시간
-        if (day === 1 || day === 3 || day === 5) {
-          target = new Date(date.setHours(19, 0, 0, 0)); // 월수금 오후 7시
-        } else {
-          target = new Date(date.setHours(20, 0, 0, 0)); // 화목 오후 8시
-        }
-        if (now < target) return target;
+      // 오후 조건
+      const afternoon = new Date();
+      if ([1, 3, 5].includes(day)) {
+        afternoon.setHours(19, 0, 0, 0); // 월수금 오후 7시
+      } else if ([2, 4].includes(day)) {
+        afternoon.setHours(20, 0, 0, 0); // 화목 오후 8시
+      } else {
+        return null; // 주말은 없음
       }
 
-      // 다음 평일 오전 9:30
-      do {
-        now.setDate(now.getDate() + 1);
-      } while (now.getDay() === 0 || now.getDay() === 6);
+      if (now < afternoon) return afternoon;
 
-      return new Date(now.setHours(9, 30, 0, 0));
+      return null;
+    }
+
+    function checkReservationAllowed() {
+      const now = new Date();
+      const allowedTime = getNextReservationTime();
+      if (!allowedTime) return false;
+      return now >= allowedTime;
     }
 
     function updateCountdown() {
       const now = new Date();
-      const nextTime = getNextReservationTime();
-      const countdownEl = document.getElementById("countdown");
+      const next = getNextReservationTime();
 
-      const diff = nextTime - now;
-      if (diff <= 0) {
-        countdownEl.textContent = "지금 예약이 가능합니다.";
+      if (!next) {
+        countdownEl.textContent = "예약은 평일에만 가능합니다.";
         return;
       }
 
-      const minutes = Math.floor(diff / 60000);
-      const seconds = Math.floor((diff % 60000) / 1000);
-      countdownEl.textContent = `예약 가능까지 남은 시간: ${minutes}분 ${seconds}초`;
-    }
-
-    setInterval(updateCountdown, 1000);
-    updateCountdown();
-
-    function checkReservationAllowed() {
-      const now = new Date();
-      const day = now.getDay();
-      const hour = now.getHours();
-      const min = now.getMinutes();
-      if(day === 0 || day === 6) return false;
-      if(hour < 9 || (hour === 9 && min < 30)) return false;
-      if(day === 1 || day === 3 || day === 5) {
-        if(hour < 19) return false;
+      const diff = next - now;
+      if (diff <= 0) {
+        countdownEl.textContent = "지금 예약이 가능합니다!";
+        return;
       }
-      if(day === 2 || day === 4) {
-        if(hour < 20) return false;
-      }
-      return true;
-    }
 
-    async function resetAllReservations() {
-      const todayStr = getTodayStr();
-      const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
-      const snapshot = await seatsRef.get();
-      const batch = db.batch();
-      snapshot.forEach(doc => batch.delete(doc.ref));
-      await batch.commit();
-      loadSeats();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      let text = "예약 가능까지 남은 시간: ";
+      if (hours > 0) text += `${hours}시간 `;
+      text += `${minutes}분 ${seconds}초`;
+      countdownEl.textContent = text;
     }
 
     async function checkAndReset() {
@@ -204,7 +186,17 @@
       }
     }
 
-    setInterval(checkAndReset, 60000);
+    async function resetAllReservations() {
+      const todayStr = getTodayStr();
+      const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
+      const snapshot = await seatsRef.get();
+      const batch = db.batch();
+      snapshot.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+      loadSeats();
+    }
 
     async function loadSeats() {
       container.innerHTML = "";
@@ -212,7 +204,9 @@
       const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
       const snapshot = await seatsRef.get();
       const reservedSeats = {};
-      snapshot.forEach(doc => reservedSeats[doc.id] = doc.data());
+      snapshot.forEach(doc => {
+        reservedSeats[doc.id] = doc.data();
+      });
 
       seatRows.forEach(row => {
         const rowDiv = document.createElement("div");
@@ -222,12 +216,14 @@
           seatDiv.className = "seat";
           seatDiv.dataset.number = seatNum;
           seatDiv.textContent = seatNum;
-          if(reservedSeats[seatNum]) {
+
+          if (reservedSeats[seatNum]) {
             seatDiv.textContent = reservedSeats[seatNum].name;
             seatDiv.classList.add("reserved");
             seatDiv.dataset.name = reservedSeats[seatNum].name;
             seatDiv.dataset.pw = reservedSeats[seatNum].pw;
           }
+
           seatDiv.addEventListener("click", () => reserveSeat(seatDiv));
           rowDiv.appendChild(seatDiv);
         });
@@ -236,12 +232,11 @@
     }
 
     async function reserveSeat(div) {
-      if(div.classList.contains("reserved")) {
+      if (div.classList.contains("reserved")) {
         const inputPw = prompt("예약 취소를 위해 비밀번호 4자리를 입력하세요:");
-        if(inputPw === div.dataset.pw) {
+        if (inputPw === div.dataset.pw) {
           const todayStr = getTodayStr();
-          const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
-          await seatsRef.doc(div.dataset.number).delete();
+          await db.collection("reservations").doc(todayStr).collection("seats").doc(div.dataset.number).delete();
           alert("예약이 취소되었습니다.");
           loadSeats();
         } else {
@@ -250,7 +245,7 @@
         return;
       }
 
-      if(!checkReservationAllowed()) {
+      if (!checkReservationAllowed()) {
         alert("지금은 예약 시간이 아닙니다.");
         return;
       }
@@ -259,11 +254,13 @@
       const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
       const snapshot = await seatsRef.get();
       const nameSet = new Set();
-      snapshot.forEach(doc => nameSet.add(doc.data().name));
+      snapshot.forEach(doc => {
+        nameSet.add(doc.data().name);
+      });
 
       const name = prompt("예약자 이름을 입력하세요:");
-      if(!name) return alert("이름을 입력해야 예약할 수 있습니다.");
-      if(nameSet.has(name)) {
+      if (!name) return alert("이름을 입력해야 예약할 수 있습니다.");
+      if (nameSet.has(name)) {
         alert("이미 예약한 자리가 있습니다.");
         return;
       }
@@ -271,15 +268,19 @@
       let pw;
       do {
         pw = prompt("예약 비밀번호 4자리를 숫자로 입력하세요:");
-        if(pw === null) return alert("비밀번호를 입력해야 예약할 수 있습니다.");
-      } while(!/^\d{4}$/.test(pw));
+        if (pw === null) return alert("비밀번호를 입력해야 예약할 수 있습니다.");
+      } while (!/^\d{4}$/.test(pw));
 
       await seatsRef.doc(div.dataset.number).set({ name, pw });
       alert("예약이 완료되었습니다.");
       loadSeats();
     }
 
+    setInterval(checkAndReset, 60000); // 1분마다 초기화 체크
+    setInterval(updateCountdown, 1000); // 1초마다 카운트다운 업데이트
+
     loadSeats();
+    updateCountdown();
   </script>
 
   <table>
@@ -313,9 +314,11 @@
     </tbody>
   </table>
 
-  <div class="notice">
-    - 스피닝 자리 예약은 수업 30분 전부터 가능합니다.<br>
-    - 바이크 손잡이, 안장에 문제가 있는 경우 트레이너에 말씀해주세요.
+  <div id="notice">
+    <ul>
+      <li>스피닝 자리 예약은 수업 30분 전부터 가능합니다.</li>
+      <li>바이크 손잡이, 안장에 문제가 있는 경우 트레이너에 말씀해주세요.</li>
+    </ul>
   </div>
 
 </body>
