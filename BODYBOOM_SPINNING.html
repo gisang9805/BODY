@@ -118,6 +118,14 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
   <script>
+    // 페이지 진입 시 비밀번호 확인
+    const accessPw = prompt("비밀번호 4자리를 입력하세요:");
+    if (accessPw !== "0528") {
+      alert("비밀번호가 틀렸습니다. 페이지 접근이 차단됩니다.");
+      document.body.innerHTML = "<h2 style='text-align:center; margin-top:50px;'>접근 권한이 없습니다.</h2>";
+      throw new Error("비밀번호 오류로 페이지 접근 차단");
+    }
+
     const firebaseConfig = {
       apiKey: "AIzaSyB9v97oeQISiV1P3k6EeFl_n0zeRv-aMsE",
       authDomain: "spinning-120fe.firebaseapp.com",
