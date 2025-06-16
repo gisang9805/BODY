@@ -263,48 +263,48 @@
       await seatsRef.doc(seatNum).set({ name, pw, uid: currentUserUID });
       alert("예약이 완료되었습니다.");
     }
+function updateCountdown() {
+  const now = new Date();
+  const day = now.getDay();
+  const hour = now.getHours();
+  const min = now.getMinutes();
+  const sec = now.getSeconds();
+  const totalSecNow = hour * 3600 + min * 60 + sec;
 
-    function updateCountdown() {
-      const now = new Date();
-      const day = now.getDay();
-      const hour = now.getHours();
-      const min = now.getMinutes();
-      const sec = now.getSeconds();
-      const totalMinNow = hour * 60 + min;
+  const times = [];
+  const morningStart = 9 * 60 + 30; // 9:30
+  if (day >= 1 && day <= 5 && totalSecNow < morningStart * 60) {
+    times.push(morningStart * 60);
+  }
 
-      const times = [];
-      const morningStart = 9 * 60 + 30;
-      if (day >= 1 && day <= 5 && totalMinNow < morningStart) {
-        times.push(morningStart);
-      }
+  if ([1, 3, 5].includes(day)) {
+    const eveningStart = 19 * 60;
+    if (totalSecNow < eveningStart * 60) times.push(eveningStart * 60);
+  } else if ([2, 4].includes(day)) {
+    const eveningStart = 20 * 60;
+    if (totalSecNow < eveningStart * 60) times.push(eveningStart * 60);
+  }
 
-      if ([1, 3, 5].includes(day)) {
-        const eveningStart = 19 * 60;
-        if (totalMinNow < eveningStart) times.push(eveningStart);
-      } else if ([2, 4].includes(day)) {
-        const eveningStart = 20 * 60;
-        if (totalMinNow < eveningStart) times.push(eveningStart);
-      }
+  const countdown = document.getElementById("countdown");
 
-      const countdown = document.getElementById("countdown");
+  if (times.length === 0) {
+    countdown.textContent = "지금은 예약이 불가능한 시간입니다.";
+    return;
+  }
 
-      if (times.length === 0) {
-        countdown.textContent = "지금은 예약이 불가능한 시간입니다.";
-        return;
-      }
+  const next = Math.min(...times);
+  const diffSec = next - totalSecNow;
+  const hours = Math.floor(diffSec / 3600);
+  const minutes = Math.floor((diffSec % 3600) / 60);
+  const seconds = diffSec % 60;
 
-      const next = Math.min(...times);
-      const diffMin = next - totalMinNow;
-      const hours = Math.floor(diffMin / 60);
-      const minutes = diffMin % 60;
+  let text = `예약 가능까지 `;
+  if (hours > 0) text += `${hours}시간 `;
+  if (minutes > 0 || hours > 0) text += `${minutes}분 `;
+  text += `${seconds}초 남았습니다`;
 
-      let text = `예약 가능까지 `;
-      if (hours > 0) text += `${hours}시간 `;
-      text += `${minutes}분 남았습니다`;
-      text += `${seconds}분 남았습니다`;
-      
-      countdown.textContent = text;
-    }
+  countdown.textContent = text;
+}
 
     setInterval(checkAndReset, 60000);
     setInterval(updateCountdown, 1000);
