@@ -201,53 +201,54 @@
     }
 
     async function reserveSeat(div) {
-      if(div.classList.contains("reserved")) {
-        const inputPw = prompt("예약 취소를 위해 비밀번호 4자리를 입력하세요:");
-        if(inputPw === div.dataset.pw) {
-          const todayStr = getTodayStr();
-          const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
-          await seatsRef.doc(div.dataset.number).delete();
-          alert("예약이 취소되었습니다.");
-          loadSeats();
-        } else {
-          alert("비밀번호가 틀렸습니다.");
-        }
-        return;
-      }
-
-      if(!checkReservationAllowed()) {
-        alert("지금은 예약 시간이 아닙니다.");
-        return;
-      }
-
-      const name = prompt("예약자 이름을 입력하세요:");
-      if(!name) return alert("이름을 입력해야 예약할 수 있습니다.");
-
+  if(div.classList.contains("reserved")) {
+    const inputPw = prompt("예약 취소를 위해 비밀번호 4자리를 입력하세요:");
+    if(inputPw === div.dataset.pw) {
       const todayStr = getTodayStr();
       const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
-      const snapshot = await seatsRef.get();
-
-      let alreadyReserved = false;
-      snapshot.forEach(doc => {
-        if(doc.data().name === name) alreadyReserved = true;
-      });
-
-      if(alreadyReserved) {
-        alert("이미 예약한 자리가 있습니다.");
-        return;
-      }
-
-      let pw;
-      do {
-        pw = prompt("예약 비밀번호 4자리를 숫자로 입력하세요:");
-        if(pw === null) return alert("비밀번호를 입력해야 예약할 수 있습니다.");
-      } while(!/^\d{4}$/.test(pw));
-
-      await seatsRef.doc(div.dataset.number).set({ name, pw });
-      alert("예약이 완료되었습니다.");
+      await seatsRef.doc(div.dataset.number).delete();
+      alert("예약이 취소되었습니다.");
       loadSeats();
+    } else {
+      alert("비밀번호가 틀렸습니다.");
     }
+    return;
+  }
 
+  if(!checkReservationAllowed()) {
+    alert("지금은 예약 시간이 아닙니다.");
+    return;
+  }
+
+  const name = prompt("예약자 이름을 입력하세요:");
+  if(!name) return alert("이름을 입력해야 예약할 수 있습니다.");
+
+  const todayStr = getTodayStr();
+  const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
+  const snapshot = await seatsRef.get();
+
+  let alreadyReservedSeat = null;
+  snapshot.forEach(doc => {
+    if(doc.data().name === name) {
+      alreadyReservedSeat = doc.id;
+    }
+  });
+
+  if(alreadyReservedSeat) {
+    alert(`이미 예약한 자리가 있습니다. (좌석 번호: ${alreadyReservedSeat})`);
+    return;
+  }
+
+  let pw;
+  do {
+    pw = prompt("예약 비밀번호 4자리를 숫자로 입력하세요:");
+    if(pw === null) return alert("비밀번호를 입력해야 예약할 수 있습니다.");
+  } while(!/^\d{4}$/.test(pw));
+
+  await seatsRef.doc(div.dataset.number).set({ name, pw });
+  alert("예약이 완료되었습니다.");
+  loadSeats();
+}
     function updateCountdown() {
       const countdownDiv = document.getElementById("countdown");
       const now = new Date();
