@@ -170,13 +170,14 @@
     }
 
     async function checkAndReset() {
-      const now = new Date();
-      const hour = now.getHours();
-      const min = now.getMinutes();
-      if ((hour === 11 || hour === 13) && min === 0) {
-        await resetAllReservations();
-      }
-    }
+  const now = new Date();
+  const hour = now.getHours();
+  const min = now.getMinutes();
+  if ((hour === 11 && min === 0) || (hour === 13 && min === 15)) {
+    await resetAllReservations();
+  }
+}
+  
 
     function loadSeatsRealtime() {
       const todayStr = getTodayStr();
