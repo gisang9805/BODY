@@ -69,6 +69,7 @@
       border: 1px solid #333;
       padding: 8px 12px;
       text-align: center;
+      white-space: nowrap; /* 줄바꿈 방지 */
     }
   </style>
 </head>
@@ -129,7 +130,7 @@
       const min = now.getMinutes();
       const totalMin = hour * 60 + min;
 
-      if (day === 0 || day === 6) return false; // 주말 제외
+      if (day === 0 || day === 6) return false;
 
       const morningStart = 9 * 60 + 30;
       const morningEnd = 10 * 60 + 30;
