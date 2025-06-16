@@ -51,6 +51,7 @@
       user-select: none;
       cursor: pointer;
       transition: background-color 0.3s;
+      position: relative;
     }
     .seat.reserved {
       background-color: #4caf50;
@@ -88,16 +89,17 @@
   <div id="countdown"></div>
   <div id="container"></div>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyB9v97oeQISiV1P3k6EeFl_n0zeRv-aMsE",
       authDomain: "spinning-120fe.firebaseapp.com",
       projectId: "spinning-120fe",
-      storageBucket: "spinning-120fe.firebasestorage.app",
+      storageBucket: "spinning-120fe.appspot.com",
       messagingSenderId: "246146727087",
       appId: "1:246146727087:web:94ae386984114c478c285a",
       measurementId: "G-KX06T2G2E2"
@@ -107,7 +109,6 @@
     const db = firebase.firestore();
 
     const container = document.getElementById("container");
-
     const seatRows = [
       [1, 2, 3, 4, 5],
       [6, 7, 8, 9, 10, 11],
@@ -115,39 +116,55 @@
       [18, 19, 20, 21, 22]
     ];
 
+    let currentUserUID = null;
+
+    firebase.auth().signInAnonymously()
+      .then(userCredential => {
+        currentUserUID = userCredential.user.uid;
+        loadSeatsRealtime();
+        updateCountdown();
+      })
+      .catch(error => {
+        console.error("익명 로그인 실패:", error);
+        alert("인증 실패: 페이지를 새로고침 해주세요.");
+      });
+
     function getTodayStr() {
-      const now = new Date();
-      return now.toISOString().slice(0,10);
+      return new Date().toISOString().slice(0, 10);
     }
 
     function checkReservationAllowed() {
       const now = new Date();
-      const day = now.getDay(); // 0~6
+      const day = now.getDay();
       const hour = now.getHours();
       const min = now.getMinutes();
-
-      if (day === 0 || day === 6) return false; // 주말 불가
-
+      if (day === 0 || day === 6) return false;
       const totalMin = hour * 60 + min;
-
       const morningStart = 9 * 60 + 30;
       const morningEnd = 10 * 60 + 30;
-
       if (totalMin >= morningStart && totalMin < morningEnd) return true;
-
-      if ([1, 3, 5].includes(day)) { // 월수금
+      if ([1, 3, 5].includes(day)) {
         const eveningStart = 19 * 60;
         const eveningEnd = 20 * 60;
         if (totalMin >= eveningStart && totalMin < eveningEnd) return true;
       }
-
-      if ([2, 4].includes(day)) { // 화목
+      if ([2, 4].includes(day)) {
         const eveningStart = 20 * 60;
         const eveningEnd = 21 * 60;
         if (totalMin >= eveningStart && totalMin < eveningEnd) return true;
       }
-
       return false;
+    }
+
+    async function resetAllReservations() {
+      const todayStr = getTodayStr();
+      const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
+      const snapshot = await seatsRef.get();
+      const batch = db.batch();
+      snapshot.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
     }
 
     async function checkAndReset() {
@@ -160,29 +177,20 @@
       }
     }
 
-    async function resetAllReservations() {
+    function loadSeatsRealtime() {
       const todayStr = getTodayStr();
       const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
-      const snapshot = await seatsRef.get();
-      const batch = db.batch();
-
-      snapshot.forEach(doc => {
-        batch.delete(doc.ref);
+      seatsRef.onSnapshot(snapshot => {
+        const reservedSeats = {};
+        snapshot.forEach(doc => {
+          reservedSeats[doc.id] = doc.data();
+        });
+        renderSeats(reservedSeats);
       });
-      await batch.commit();
-      loadSeats();
     }
 
-    async function loadSeats() {
+    function renderSeats(reservedSeats) {
       container.innerHTML = "";
-      const todayStr = getTodayStr();
-      const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
-      const snapshot = await seatsRef.get();
-      const reservedSeats = {};
-      snapshot.forEach(doc => {
-        reservedSeats[doc.id] = doc.data();
-      });
-
       seatRows.forEach(row => {
         const rowDiv = document.createElement("div");
         rowDiv.className = "row";
@@ -194,10 +202,11 @@
           seatDiv.textContent = seatNum;
 
           if (reservedSeats[seatNum]) {
-            seatDiv.textContent = reservedSeats[seatNum].name;
             seatDiv.classList.add("reserved");
+            seatDiv.textContent = reservedSeats[seatNum].name;
             seatDiv.dataset.name = reservedSeats[seatNum].name;
             seatDiv.dataset.pw = reservedSeats[seatNum].pw;
+            seatDiv.dataset.uid = reservedSeats[seatNum].uid;
           }
 
           seatDiv.addEventListener("click", () => reserveSeat(seatDiv));
@@ -209,14 +218,15 @@
     }
 
     async function reserveSeat(div) {
+      const seatNum = div.dataset.number;
+      const todayStr = getTodayStr();
+      const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
+
       if (div.classList.contains("reserved")) {
         const inputPw = prompt("예약 취소를 위해 비밀번호 4자리를 입력하세요:");
         if (inputPw === div.dataset.pw) {
-          const todayStr = getTodayStr();
-          const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
-          await seatsRef.doc(div.dataset.number).delete();
+          await seatsRef.doc(seatNum).delete();
           alert("예약이 취소되었습니다.");
-          loadSeats();
         } else {
           alert("비밀번호가 틀렸습니다.");
         }
@@ -228,24 +238,21 @@
         return;
       }
 
-      const name = prompt("예약자 이름을 입력하세요:");
-      if (!name) return alert("이름을 입력해야 예약할 수 있습니다.");
-
-      const todayStr = getTodayStr();
-      const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
       const snapshot = await seatsRef.get();
-
-      let alreadyReservedSeat = null;
+      let alreadyReserved = null;
       snapshot.forEach(doc => {
-        if (doc.data().name === name) {
-          alreadyReservedSeat = doc.id;
+        if (doc.data().uid === currentUserUID) {
+          alreadyReserved = doc.id;
         }
       });
 
-      if (alreadyReservedSeat) {
-        alert(`이미 예약한 자리가 있습니다. (좌석 번호: ${alreadyReservedSeat})`);
+      if (alreadyReserved) {
+        alert(`이미 예약한 자리가 있습니다. (좌석 번호: ${alreadyReserved})`);
         return;
       }
+
+      const name = prompt("예약자 이름을 입력하세요:");
+      if (!name) return alert("이름을 입력해야 예약할 수 있습니다.");
 
       let pw;
       do {
@@ -253,9 +260,8 @@
         if (pw === null) return alert("비밀번호를 입력해야 예약할 수 있습니다.");
       } while (!/^\d{4}$/.test(pw));
 
-      await seatsRef.doc(div.dataset.number).set({ name, pw });
+      await seatsRef.doc(seatNum).set({ name, pw, uid: currentUserUID });
       alert("예약이 완료되었습니다.");
-      loadSeats();
     }
 
     function updateCountdown() {
@@ -267,14 +273,11 @@
       const totalMinNow = hour * 60 + min;
 
       const times = [];
-
-      // 오전
       const morningStart = 9 * 60 + 30;
       if (day >= 1 && day <= 5 && totalMinNow < morningStart) {
         times.push(morningStart);
       }
 
-      // 오후
       if ([1, 3, 5].includes(day)) {
         const eveningStart = 19 * 60;
         if (totalMinNow < eveningStart) times.push(eveningStart);
@@ -283,14 +286,15 @@
         if (totalMinNow < eveningStart) times.push(eveningStart);
       }
 
+      const countdown = document.getElementById("countdown");
+
       if (times.length === 0) {
-        document.getElementById("countdown").textContent = "지금은 예약이 불가능한 시간입니다.";
+        countdown.textContent = "지금은 예약이 불가능한 시간입니다.";
         return;
       }
 
       const next = Math.min(...times);
       const diffMin = next - totalMinNow;
-      const diffSec = 60 - sec;
       const hours = Math.floor(diffMin / 60);
       const minutes = diffMin % 60;
 
@@ -298,13 +302,11 @@
       if (hours > 0) text += `${hours}시간 `;
       text += `${minutes}분 남았습니다`;
 
-      document.getElementById("countdown").textContent = text;
+      countdown.textContent = text;
     }
 
     setInterval(checkAndReset, 60000);
     setInterval(updateCountdown, 1000);
-    loadSeats();
-    updateCountdown();
   </script>
 
   <table>
