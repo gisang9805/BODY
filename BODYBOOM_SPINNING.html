@@ -138,6 +138,7 @@
         currentUserUID = userCredential.user.uid;
         loadSeatsRealtime();
         updateCountdown();
+        startAutoClear();
       })
       .catch(error => {
         console.error("익명 로그인 실패:", error);
@@ -150,7 +151,7 @@
 
     function checkReservationAllowed() {
       const now = new Date();
-      const day = now.getDay(); // 0: 일요일 ~ 6: 토요일
+      const day = now.getDay(); // 0:일 ~ 6:토
       const hour = now.getHours();
       const min = now.getMinutes();
       const totalMin = hour * 60 + min;
@@ -309,6 +310,48 @@
         `예약 가능까지 ${hours > 0 ? hours + "시간 " : ""}${minutes}분 ${seconds}초 남았습니다`;
     }
 
+    // 자동 초기화 함수
+    function startAutoClear() {
+      setInterval(() => {
+        const now = new Date();
+        const day = now.getDay();
+        if (day === 0 || day === 6) return; // 주말은 패스
+
+        const hour = now.getHours();
+        const min = now.getMinutes();
+
+        // 오전 11시 30분 초기화
+        if (hour === 11 && min === 30) {
+          clearReservations();
+        }
+        // 오후 9시 30분 초기화
+        if (hour === 21 && min === 30) {
+          clearReservations();
+        }
+      }, 1000 * 30); // 30초마다 체크
+    }
+
+    async function clearReservations() {
+      const todayStr = getTodayStr();
+      const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
+      const snapshot = await seatsRef.get();
+      const batch = db.batch();
+
+      snapshot.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+      alert("예약이 자동 초기화 되었습니다.");
+    }
+
+    // 초기화 시간 안내 표시
+    function showClearTimeNotice() {
+      const clearTimeNotice = document.getElementById("clearTimeNotice");
+      clearTimeNotice.textContent = "예약 초기화 시간: 오전 11시 30분, 오후 9시 30분";
+    }
+
+    showClearTimeNotice();
     setInterval(updateCountdown, 1000);
   </script>
 
@@ -342,6 +385,8 @@
       </tr>
     </tbody>
   </table>
+
+  <div id="clearTimeNotice" style="text-align:center; font-size:0.9rem; color:#555; margin-bottom:20px;"></div>
 
   <div id="notice">
     <ul>
