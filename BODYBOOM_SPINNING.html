@@ -51,7 +51,6 @@
       user-select: none;
       cursor: pointer;
       transition: background-color 0.3s;
-      position: relative;
     }
     .seat.reserved {
       background-color: #4caf50;
@@ -61,26 +60,22 @@
       background-color: #f44336 !important;
       color: white;
     }
-
-    /* 테이블 스타일 추가 */
     table {
-      width: 100%;
+      width: 90%;
+      margin: 20px auto;
       border-collapse: collapse;
-      margin-top: 20px;
+      text-align: center;
+    }
+    table, th, td {
+      border: 1px solid #999;
     }
     th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
-      text-align: center;
-      font-size: 14px;
-    }
-    thead {
-      background-color: #f2f2f2;
+      padding: 10px;
     }
     #notice {
-      max-width: 500px;
+      max-width: 400px;
       margin: 20px auto;
-      font-size: 14px;
+      font-size: 0.9rem;
     }
   </style>
 </head>
@@ -140,7 +135,8 @@
       const min = now.getMinutes();
       const totalMin = hour * 60 + min;
 
-      if (day === 0 || day === 6) return false; // 주말 제외
+      if (day === 0 || day === 6) return false;
+
       const morningStart = 11 * 60 + 30;
       const morningEnd = 12 * 60 + 30;
       if (totalMin >= morningStart && totalMin < morningEnd) return true;
@@ -154,6 +150,12 @@
         const eveningEnd = 21 * 60;
         if (totalMin >= eveningStart && totalMin < eveningEnd) return true;
       }
+
+      // 추가된 시간: 14:00 ~ 14:05
+      const extraStart = 14 * 60;
+      const extraEnd = 14 * 60 + 5;
+      if (totalMin >= extraStart && totalMin < extraEnd) return true;
+
       return false;
     }
 
@@ -183,9 +185,7 @@
           seatDiv.dataset.number = seatNum;
           seatDiv.textContent = seatNum;
 
-          if (!allowed) {
-            seatDiv.classList.add("disabled");
-          }
+          if (!allowed) seatDiv.classList.add("disabled");
 
           if (reservedSeats[seatNum]) {
             seatDiv.classList.add("reserved");
@@ -272,6 +272,11 @@
         if (totalMinNow < eveningStart) times.push(eveningStart);
       }
 
+      const extraStart = 14 * 60;
+      if (totalMinNow < extraStart) {
+        times.push(extraStart);
+      }
+
       const countdown = document.getElementById("countdown");
 
       if (times.length === 0) {
@@ -330,9 +335,9 @@
     <ul>
       <li>스피닝 자리 예약은 수업 30분 전부터 가능합니다.</li>
       <li>수업시간에 늦을 경우 빈자리에 착석 가능합니다.</li>
-      <li>--------------------------------------</li>
+      <hr />
       <li>예약 프로그램에 문제가 있는 경우</li>
-      <li>최기상 트레이너에게 말씀해주세요!!</li>
+      <li>최기상 트레이너에게 말씀해주세요!</li>
     </ul>
   </div>
 
