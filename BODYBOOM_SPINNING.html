@@ -133,34 +133,47 @@
 
     let currentUserUID = null;
 
+    firebase.auth().signInAnonymously()
+      .then(userCredential => {
+        currentUserUID = userCredential.user.uid;
+        loadSeatsRealtime();
+        updateCountdown();
+      })
+      .catch(error => {
+        console.error("익명 로그인 실패:", error);
+        alert("인증 실패: 페이지를 새로고침 해주세요.");
+      });
+
     function getTodayStr() {
       return new Date().toISOString().slice(0, 10);
     }
 
-    // 예약 가능 시간 체크 함수 (월~금, 오전 10~11시 / 월수금 오후 19~20시 / 화목 오후 20~21시)
     function checkReservationAllowed() {
       const now = new Date();
-      const day = now.getDay(); // 0=일,1=월,...,5=금,6=토
+      const day = now.getDay(); // 0: 일요일 ~ 6: 토요일
       const hour = now.getHours();
       const min = now.getMinutes();
       const totalMin = hour * 60 + min;
 
-      if (day === 0 || day === 6) return false; // 주말 예약 불가
+      if (day === 0 || day === 6) return false;
 
-      // 오전 10:00 ~ 11:00 (월~금)
-      if (totalMin >= 10 * 60 && totalMin < 11 * 60) return true;
+      const morningStart = 10 * 60;
+      const morningEnd = 11 * 60;
+      if (totalMin >= morningStart && totalMin < morningEnd) return true;
 
-      // 오후 시간대
-      if ([1, 3, 5].includes(day)) { // 월수금 오후 19~20시
-        if (totalMin >= 19 * 60 && totalMin < 20 * 60) return true;
-      } else if ([2, 4].includes(day)) { // 화목 오후 20~21시
-        if (totalMin >= 20 * 60 && totalMin < 21 * 60) return true;
+      if ([1, 3, 5].includes(day)) {
+        const eveningStart = 19 * 60;
+        const eveningEnd = 20 * 60;
+        if (totalMin >= eveningStart && totalMin < eveningEnd) return true;
+      } else if ([2, 4].includes(day)) {
+        const eveningStart = 20 * 60;
+        const eveningEnd = 21 * 60;
+        if (totalMin >= eveningStart && totalMin < eveningEnd) return true;
       }
 
       return false;
     }
 
-    // 예약 데이터 실시간 로드
     function loadSeatsRealtime() {
       const todayStr = getTodayStr();
       const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
@@ -173,7 +186,6 @@
       });
     }
 
-    // 좌석 렌더링
     function renderSeats(reservedSeats) {
       container.innerHTML = "";
       const allowed = checkReservationAllowed();
@@ -208,7 +220,6 @@
       });
     }
 
-    // 예약 처리 함수
     async function reserveSeat(div, allowed) {
       const seatNum = div.dataset.number;
       const todayStr = getTodayStr();
@@ -256,7 +267,6 @@
       alert("예약이 완료되었습니다.");
     }
 
-    // 남은 시간 카운트다운 표시
     function updateCountdown() {
       const now = new Date();
       const day = now.getDay();
@@ -264,5 +274,84 @@
       const min = now.getMinutes();
       const sec = now.getSeconds();
       const totalMinNow = hour * 60 + min;
+      const totalSecNow = totalMinNow * 60 + sec;
 
       const times = [];
+
+      if (day >= 1 && day <= 5) {
+        const morningStart = 10 * 60;
+        if (totalMinNow < morningStart) times.push(morningStart);
+      }
+
+      if ([1, 3, 5].includes(day)) {
+        const eveningStart = 19 * 60;
+        if (totalMinNow < eveningStart) times.push(eveningStart);
+      } else if ([2, 4].includes(day)) {
+        const eveningStart = 20 * 60;
+        if (totalMinNow < eveningStart) times.push(eveningStart);
+      }
+
+      const countdown = document.getElementById("countdown");
+
+      if (times.length === 0) {
+        countdown.textContent = "지금은 예약이 불가능한 시간입니다.";
+        return;
+      }
+
+      const next = Math.min(...times);
+      const remaining = next * 60 - totalSecNow;
+
+      const hours = Math.floor(remaining / 3600);
+      const minutes = Math.floor((remaining % 3600) / 60);
+      const seconds = remaining % 60;
+
+      countdown.textContent =
+        `예약 가능까지 ${hours > 0 ? hours + "시간 " : ""}${minutes}분 ${seconds}초 남았습니다`;
+    }
+
+    setInterval(updateCountdown, 1000);
+  </script>
+
+  <table>
+    <thead>
+      <tr>
+        <th>수업시간</th>
+        <th>월</th>
+        <th>화</th>
+        <th>수</th>
+        <th>목</th>
+        <th>금</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>오전</td>
+        <td>10시</td>
+        <td>10시</td>
+        <td>10시</td>
+        <td>10시</td>
+        <td>10시</td>
+      </tr>
+      <tr>
+        <td>오후</td>
+        <td>7시</td>
+        <td>8시</td>
+        <td>7시</td>
+        <td>8시</td>
+        <td>7시</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div id="notice">
+    <ul>
+      <li>스피닝 자리 예약은 수업 시간에만 가능합니다.</li>
+      <li>수업시간에 늦을 경우 빈자리에 착석 가능합니다.</li>
+      <li>--------------------------------------</li>
+      <li>예약 프로그램에 문제가 있는 경우</li>
+      <li>최기상 트레이너에게 말씀해주세요!!</li>
+    </ul>
+  </div>
+
+</body>
+</html>
