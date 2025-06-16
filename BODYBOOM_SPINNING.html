@@ -301,7 +301,8 @@
       let text = `예약 가능까지 `;
       if (hours > 0) text += `${hours}시간 `;
       text += `${minutes}분 남았습니다`;
-
+      text += `${seconds}분 남았습니다`;
+      
       countdown.textContent = text;
     }
 
