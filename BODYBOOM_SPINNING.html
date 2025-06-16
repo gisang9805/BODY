@@ -61,6 +61,27 @@
       background-color: #f44336 !important;
       color: white;
     }
+
+    /* 테이블 스타일 추가 */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+      font-size: 14px;
+    }
+    thead {
+      background-color: #f2f2f2;
+    }
+    #notice {
+      max-width: 500px;
+      margin: 20px auto;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -76,14 +97,14 @@
 
   <script>
     const firebaseConfig = {
-  apiKey: "AIzaSyB9v97oeQISiV1P3k6EeFl_n0zeRv-aMsE",
-  authDomain: "spinning-120fe.firebaseapp.com",
-  projectId: "spinning-120fe",
-  storageBucket: "spinning-120fe.firebasestorage.app",
-  messagingSenderId: "246146727087",
-  appId: "1:246146727087:web:94ae386984114c478c285a",
-  measurementId: "G-KX06T2G2E2"
-};
+      apiKey: "AIzaSyB9v97oeQISiV1P3k6EeFl_n0zeRv-aMsE",
+      authDomain: "spinning-120fe.firebaseapp.com",
+      projectId: "spinning-120fe",
+      storageBucket: "spinning-120fe.appspot.com",
+      messagingSenderId: "246146727087",
+      appId: "1:246146727087:web:94ae386984114c478c285a",
+      measurementId: "G-KX06T2G2E2"
+    };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
@@ -274,7 +295,7 @@
     setInterval(updateCountdown, 1000);
   </script>
 
-   <table>
+  <table>
     <thead>
       <tr>
         <th>수업시간</th>
