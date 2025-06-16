@@ -51,16 +51,10 @@
       user-select: none;
       cursor: pointer;
       transition: background-color 0.3s;
-      position: relative;
     }
     .seat.reserved {
       background-color: #4caf50;
       color: white;
-    }
-    .seat.disabled {
-      pointer-events: none;
-      background-color: #ddd;
-      color: #999;
     }
     table {
       margin: 30px auto;
@@ -94,6 +88,7 @@
   <div id="countdown"></div>
   <div id="container"></div>
 
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -137,47 +132,26 @@
       return new Date().toISOString().slice(0, 10);
     }
 
-    function checkReservationAllowed() {
-      const now = new Date();
-      const day = now.getDay();
-      const hour = now.getHours();
-      const min = now.getMinutes();
-      const totalMin = hour * 60 + min;
-
-      if (day === 0 || day === 6) return false;
-
-      const morningStart = 11 * 60 + 30;
-      const morningEnd = 12 * 60 + 30;
-      if (totalMin >= morningStart && totalMin < morningEnd) return true;
-
-      if ([1, 3, 5].includes(day)) {
-        return totalMin >= 19 * 60 && totalMin < 20 * 60;
-      } else if ([2, 4].includes(day)) {
-        return totalMin >= 20 * 60 && totalMin < 21 * 60;
-      }
-
-      return false;
-    }
-
     async function resetAllReservations() {
       const todayStr = getTodayStr();
       const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
       const snapshot = await seatsRef.get();
       const batch = db.batch();
-      snapshot.forEach(doc => batch.delete(doc.ref));
+      snapshot.forEach(doc => {
+        batch.delete(doc.ref);
+      });
       await batch.commit();
-      alert("모든 예약이 초기화되었습니다.");
+      console.log("예약이 초기화되었습니다.");
     }
 
-    async function checkAndReset() {
-  const now = new Date();
-  const hour = now.getHours();
-  const min = now.getMinutes();
-  if ((hour === 11 && min === 0) || (hour === 13 && min === 15)) {
-    await resetAllReservations();
-  }
-}
-  
+    function checkAndReset() {
+      const now = new Date();
+      const hour = now.getHours();
+      const min = now.getMinutes();
+      if ((hour === 13 && min === 22) || (hour === 23 && min === 0)) {
+        resetAllReservations();
+      }
+    }
 
     function loadSeatsRealtime() {
       const todayStr = getTodayStr();
@@ -193,8 +167,6 @@
 
     function renderSeats(reservedSeats) {
       container.innerHTML = "";
-      const allowed = checkReservationAllowed();
-
       seatRows.forEach(row => {
         const rowDiv = document.createElement("div");
         rowDiv.className = "row";
@@ -204,10 +176,6 @@
           seatDiv.className = "seat";
           seatDiv.dataset.number = seatNum;
           seatDiv.textContent = seatNum;
-
-          if (!allowed) {
-            seatDiv.classList.add("disabled");
-          }
 
           if (reservedSeats[seatNum]) {
             seatDiv.classList.add("reserved");
@@ -226,11 +194,6 @@
     }
 
     async function reserveSeat(div) {
-      if (div.classList.contains("disabled")) {
-        alert("지금은 예약이 불가능한 시간입니다.");
-        return;
-      }
-
       const seatNum = div.dataset.number;
       const todayStr = getTodayStr();
       const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
@@ -275,7 +238,10 @@
     function updateCountdown() {
       const now = new Date();
       const day = now.getDay();
-      const totalSecNow = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+      const hour = now.getHours();
+      const min = now.getMinutes();
+      const sec = now.getSeconds();
+      const totalSecNow = hour * 3600 + min * 60 + sec;
 
       const times = [];
       const morningStart = 11 * 3600 + 30 * 60;
@@ -304,12 +270,7 @@
       const minutes = Math.floor((diffSec % 3600) / 60);
       const seconds = diffSec % 60;
 
-      let text = `예약 가능까지 `;
-      if (hours > 0) text += `${hours}시간 `;
-      if (minutes > 0 || hours > 0) text += `${minutes}분 `;
-      text += `${seconds}초 남았습니다`;
-
-      countdown.textContent = text;
+      countdown.textContent = `예약 가능까지 ${hours}시간 ${minutes}분 ${seconds}초 남았습니다`;
     }
 
     setInterval(checkAndReset, 60000);
@@ -347,11 +308,12 @@
     </tbody>
   </table>
 
-  <div class="notice">
+  <div id="notice">
     <ul>
-      <li>스피닝 자리 예약은 수업 30분 전부터 가능합니다.</li>
+      <li>스피닝 자리 예약은 오전 11시 30분부터 12시 30분 사이에 가능합니다.</li>
+      <li>예약은 오후 수업 시작 1시간 전부터도 가능합니다.</li>
       <li>수업시간에 늦을 경우 빈자리에 착석 가능합니다.</li>
-      <hr />
+      <pr>-------------------------------------- </pr>
       <li>예약 프로그램에 문제가 있는 경우</li>
       <li>최기상 트레이너에게 말씀해주세요!!</li>
     </ul>
