@@ -57,29 +57,9 @@
       background-color: #4caf50;
       color: white;
     }
-    table {
-      margin: 30px auto;
-      width: 90%;
-      max-width: 500px;
-      border-collapse: collapse;
-      text-align: center;
-      font-size: 0.8rem;
-    }
-    table, th, td {
-      border: 1px solid #444;
-    }
-    th, td {
-      padding: 6px 8px;
-    }
-    thead {
-      background-color: #f0f0f0;
-    }
-    .notice {
-      max-width: 500px;
-      margin: 30px auto;
-      font-size: 0.9rem;
-      line-height: 1.4;
-      padding: 0 15px;
+    .seat.disabled {
+      background-color: #f44336 !important;
+      color: white;
     }
   </style>
 </head>
@@ -89,22 +69,17 @@
   <div id="countdown"></div>
   <div id="container"></div>
 
-  <!-- Firebase SDKs -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
   <script>
     const firebaseConfig = {
-  apiKey: "AIzaSyB9v97oeQISiV1P3k6EeFl_n0zeRv-aMsE",
-  authDomain: "spinning-120fe.firebaseapp.com",
-  projectId: "spinning-120fe",
-  storageBucket: "spinning-120fe.firebasestorage.app",
-  messagingSenderId: "246146727087",
-  appId: "1:246146727087:web:94ae386984114c478c285a",
-  measurementId: "G-KX06T2G2E2"
-};
-
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+    };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
@@ -136,19 +111,25 @@
     function checkReservationAllowed() {
       const now = new Date();
       const day = now.getDay();
-      const totalMin = now.getHours() * 60 + now.getMinutes();
+      const hour = now.getHours();
+      const min = now.getMinutes();
+      const totalMin = hour * 60 + min;
 
-      // 평일 오전: 11:30~12:30
+      if (day === 0 || day === 6) return false; // 주말 제외
       const morningStart = 11 * 60 + 30;
       const morningEnd = 12 * 60 + 30;
+      if (totalMin >= morningStart && totalMin < morningEnd) return true;
 
-      // 월수금 오후: 19:00~20:00
-      const evening135 = [1, 3, 5].includes(day) && totalMin >= 19 * 60 && totalMin < 20 * 60;
-
-      // 화목 오후: 20:00~21:00
-      const evening24 = [2, 4].includes(day) && totalMin >= 20 * 60 && totalMin < 21 * 60;
-
-      return (day >= 1 && day <= 5) && (totalMin >= morningStart && totalMin < morningEnd || evening135 || evening24);
+      if ([1, 3, 5].includes(day)) {
+        const eveningStart = 19 * 60;
+        const eveningEnd = 20 * 60;
+        if (totalMin >= eveningStart && totalMin < eveningEnd) return true;
+      } else if ([2, 4].includes(day)) {
+        const eveningStart = 20 * 60;
+        const eveningEnd = 21 * 60;
+        if (totalMin >= eveningStart && totalMin < eveningEnd) return true;
+      }
+      return false;
     }
 
     function loadSeatsRealtime() {
@@ -165,6 +146,8 @@
 
     function renderSeats(reservedSeats) {
       container.innerHTML = "";
+      const allowed = checkReservationAllowed();
+
       seatRows.forEach(row => {
         const rowDiv = document.createElement("div");
         rowDiv.className = "row";
@@ -175,6 +158,10 @@
           seatDiv.dataset.number = seatNum;
           seatDiv.textContent = seatNum;
 
+          if (!allowed) {
+            seatDiv.classList.add("disabled");
+          }
+
           if (reservedSeats[seatNum]) {
             seatDiv.classList.add("reserved");
             seatDiv.textContent = reservedSeats[seatNum].name;
@@ -183,7 +170,7 @@
             seatDiv.dataset.uid = reservedSeats[seatNum].uid;
           }
 
-          seatDiv.addEventListener("click", () => reserveSeat(seatDiv));
+          seatDiv.addEventListener("click", () => reserveSeat(seatDiv, allowed));
           rowDiv.appendChild(seatDiv);
         });
 
@@ -191,7 +178,7 @@
       });
     }
 
-    async function reserveSeat(div) {
+    async function reserveSeat(div, allowed) {
       const seatNum = div.dataset.number;
       const todayStr = getTodayStr();
       const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
@@ -207,7 +194,7 @@
         return;
       }
 
-      if (!checkReservationAllowed()) {
+      if (!allowed) {
         alert("지금은 예약 시간이 아닙니다.");
         return;
       }
@@ -241,8 +228,10 @@
     function updateCountdown() {
       const now = new Date();
       const day = now.getDay();
-      const totalMinNow = now.getHours() * 60 + now.getMinutes();
+      const hour = now.getHours();
+      const min = now.getMinutes();
       const sec = now.getSeconds();
+      const totalMinNow = hour * 60 + min;
 
       const times = [];
       const morningStart = 11 * 60 + 30;
@@ -266,62 +255,20 @@
       }
 
       const next = Math.min(...times);
-      const diffSec = (next * 60) - (totalMinNow * 60 + sec);
-      const hours = Math.floor(diffSec / 3600);
-      const minutes = Math.floor((diffSec % 3600) / 60);
-      const seconds = diffSec % 60;
+      const totalSecNow = totalMinNow * 60 + sec;
+      const totalSecNext = next * 60;
+      const remaining = totalSecNext - totalSecNow;
 
-      let text = `예약 가능까지 `;
-      if (hours > 0) text += `${hours}시간 `;
-      if (minutes > 0) text += `${minutes}분 `;
-      text += `${seconds}초 남았습니다`;
+      const hours = Math.floor(remaining / 3600);
+      const minutes = Math.floor((remaining % 3600) / 60);
+      const seconds = remaining % 60;
 
-      countdown.textContent = text;
+      countdown.textContent =
+        `예약 가능까지 ${hours > 0 ? hours + "시간 " : ""}${minutes}분 ${seconds}초 남았습니다`;
     }
 
     setInterval(updateCountdown, 1000);
   </script>
-
-  <table>
-    <thead>
-      <tr>
-        <th>수업시간</th>
-        <th>월</th>
-        <th>화</th>
-        <th>수</th>
-        <th>목</th>
-        <th>금</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>오전</td>
-        <td>10시</td>
-        <td>10시</td>
-        <td>10시</td>
-        <td>10시</td>
-        <td>10시</td>
-      </tr>
-      <tr>
-        <td>오후</td>
-        <td>7시 30분</td>
-        <td>8시 30분</td>
-        <td>7시 30분</td>
-        <td>8시 30분</td>
-        <td>7시 30분</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div id="notice">
-    <ul>
-      <li>스피닝 자리 예약은 수업 30분 전부터 가능합니다.</li>
-      <li>수업시간에 늦을 경우 빈자리에 착석 가능합니다.</li>
-      <li>--------------------------------------</li>
-      <li>예약 프로그램에 문제가 있는 경우</li>
-      <li>최기상 트레이너에게 말씀해주세요!!</li>
-    </ul>
-  </div>
 
 </body>
 </html>
