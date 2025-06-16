@@ -72,14 +72,14 @@
     table {
       border-collapse: collapse;
       margin: 20px auto;
-      font-size: 0.75rem; /* 글자 크기 줄임 */
+      font-size: 0.75rem;
     }
 
     th, td {
       border: 1px solid #333;
-      padding: 4px 6px; /* 셀 간격 줄임 */
+      padding: 4px 6px;
       text-align: center;
-      white-space: nowrap; /* 줄바꿈 방지 */
+      white-space: nowrap;
     }
 
     #notice {
@@ -150,15 +150,15 @@
 
     function checkReservationAllowed() {
       const now = new Date();
-      const day = now.getDay();
+      const day = now.getDay(); // 0: 일요일 ~ 6: 토요일
       const hour = now.getHours();
       const min = now.getMinutes();
       const totalMin = hour * 60 + min;
 
       if (day === 0 || day === 6) return false;
 
-      const morningStart = 9 * 60 + 30;
-      const morningEnd = 10 * 60 + 30;
+      const morningStart = 10 * 60;
+      const morningEnd = 11 * 60;
       if (totalMin >= morningStart && totalMin < morningEnd) return true;
 
       if ([1, 3, 5].includes(day)) {
@@ -274,11 +274,13 @@
       const min = now.getMinutes();
       const sec = now.getSeconds();
       const totalMinNow = hour * 60 + min;
+      const totalSecNow = totalMinNow * 60 + sec;
 
       const times = [];
-      const morningStart = 9 * 60 + 30;
-      if (day >= 1 && day <= 5 && totalMinNow < morningStart) {
-        times.push(morningStart);
+
+      if (day >= 1 && day <= 5) {
+        const morningStart = 10 * 60;
+        if (totalMinNow < morningStart) times.push(morningStart);
       }
 
       if ([1, 3, 5].includes(day)) {
@@ -297,9 +299,7 @@
       }
 
       const next = Math.min(...times);
-      const totalSecNow = totalMinNow * 60 + sec;
-      const totalSecNext = next * 60;
-      const remaining = totalSecNext - totalSecNow;
+      const remaining = next * 60 - totalSecNow;
 
       const hours = Math.floor(remaining / 3600);
       const minutes = Math.floor((remaining % 3600) / 60);
@@ -334,18 +334,18 @@
       </tr>
       <tr>
         <td>오후</td>
-        <td>7시 30분</td>
-        <td>8시 30분</td>
-        <td>7시 30분</td>
-        <td>8시 30분</td>
-        <td>7시 30분</td>
+        <td>7시</td>
+        <td>8시</td>
+        <td>7시</td>
+        <td>8시</td>
+        <td>7시</td>
       </tr>
     </tbody>
   </table>
 
   <div id="notice">
     <ul>
-      <li>스피닝 자리 예약은 수업 30분 전부터 가능합니다.</li>
+      <li>스피닝 자리 예약은 수업 시간에만 가능합니다.</li>
       <li>수업시간에 늦을 경우 빈자리에 착석 가능합니다.</li>
       <li>--------------------------------------</li>
       <li>예약 프로그램에 문제가 있는 경우</li>
