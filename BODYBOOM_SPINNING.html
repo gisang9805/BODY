@@ -6,9 +6,23 @@
   <title>BODYBOOM SPINNING 자리 예약</title>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: 'Arial', sans-serif;
       background-color: #fff;
+      margin: 0;
+      padding: 0;
       color: #000;
+    }
+    h2 {
+      text-align: center;
+      font-weight: 900;
+      font-size: 24px;
+      margin-top: 20px;
+    }
+    #countdown {
+      text-align: center;
+      font-size: 16px;
+      margin-bottom: 10px;
+      color: #333;
     }
     #container {
       max-width: 400px;
@@ -24,7 +38,7 @@
       justify-content: center;
       min-width: 300px;
     }
-    .seat, .special {
+    .seat {
       width: 50px;
       height: 50px;
       background-color: #eee;
@@ -34,18 +48,12 @@
       align-items: center;
       justify-content: center;
       font-weight: bold;
-      user-select: none;
       cursor: pointer;
       transition: background-color 0.3s;
     }
     .seat.reserved {
       background-color: #4caf50;
       color: white;
-    }
-    .special {
-      background-color: #999;
-      color: white;
-      cursor: default;
     }
     table {
       margin: 30px auto;
@@ -54,39 +62,29 @@
       border-collapse: collapse;
       text-align: center;
       font-size: 0.8rem;
-      table-layout: fixed;
     }
     table, th, td {
       border: 1px solid #444;
     }
     th, td {
       padding: 6px 8px;
-      word-break: keep-all;
-      white-space: nowrap;
     }
     thead {
       background-color: #f0f0f0;
     }
-    #countdown {
-      text-align: center;
-      margin-bottom: 10px;
-      font-size: 1rem;
-      color: #d32f2f;
-    }
     #notice {
-      margin: 20px auto;
-      width: 90%;
-      font-size: 0.9rem;
+      margin: 30px auto;
+      max-width: 500px;
+      font-size: 14px;
+      line-height: 1.6;
       color: #333;
     }
   </style>
 </head>
 <body>
 
-  <h2 style="text-align:center; font-weight: 1300;">
-    BODYBOOM SPINNING<br />자리 예약
-  </h2>
-  <div id="countdown"></div>
+  <h2>BODYBOOM SPINNING<br />자리 예약</h2>
+  <div id="countdown">예약 가능 시간을 계산 중입니다...</div>
   <div id="container"></div>
 
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -102,12 +100,10 @@
       appId: "1:246146727087:web:94ae386984114c478c285a",
       measurementId: "G-KX06T2G2E2"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
     const container = document.getElementById("container");
-    const countdownEl = document.getElementById("countdown");
 
     const seatRows = [
       [1, 2, 3, 4, 5],
@@ -121,59 +117,22 @@
       return now.toISOString().slice(0,10);
     }
 
-    function getNextReservationTime() {
-      const now = new Date();
-      const day = now.getDay(); // 0(일)~6(토)
-      const base = new Date(now);
-
-      // 오전 9:30
-      const morning = new Date(base.setHours(9, 30, 0, 0));
-      if (now < morning) return morning;
-
-      // 오후 조건
-      const afternoon = new Date();
-      if ([1, 3, 5].includes(day)) {
-        afternoon.setHours(19, 0, 0, 0); // 월수금 오후 7시
-      } else if ([2, 4].includes(day)) {
-        afternoon.setHours(20, 0, 0, 0); // 화목 오후 8시
-      } else {
-        return null; // 주말은 없음
-      }
-
-      if (now < afternoon) return afternoon;
-
-      return null;
-    }
-
     function checkReservationAllowed() {
       const now = new Date();
-      const allowedTime = getNextReservationTime();
-      if (!allowedTime) return false;
-      return now >= allowedTime;
-    }
+      const day = now.getDay();
+      const hour = now.getHours();
+      const min = now.getMinutes();
 
-    function updateCountdown() {
-      const now = new Date();
-      const next = getNextReservationTime();
+      if (day === 0 || day === 6) return false;
 
-      if (!next) {
-        countdownEl.textContent = "예약은 평일에만 가능합니다.";
-        return;
-      }
+      const inMorning = (hour > 9 || (hour === 9 && min >= 30)) &&
+                        (hour < 10 || (hour === 10 && min < 30));
 
-      const diff = next - now;
-      if (diff <= 0) {
-        countdownEl.textContent = "지금 예약이 가능합니다!";
-        return;
-      }
+      const inEvening =
+        ((day === 1 || day === 3 || day === 5) && (hour === 19)) ||
+        ((day === 2 || day === 4) && (hour === 20));
 
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-      let text = "예약 가능까지 남은 시간: ";
-      if (hours > 0) text += `${hours}시간 `;
-      text += `${minutes}분 ${seconds}초`;
-      countdownEl.textContent = text;
+      return inMorning || inEvening;
     }
 
     async function checkAndReset() {
@@ -191,9 +150,7 @@
       const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
       const snapshot = await seatsRef.get();
       const batch = db.batch();
-      snapshot.forEach(doc => {
-        batch.delete(doc.ref);
-      });
+      snapshot.forEach(doc => batch.delete(doc.ref));
       await batch.commit();
       loadSeats();
     }
@@ -203,14 +160,14 @@
       const todayStr = getTodayStr();
       const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
       const snapshot = await seatsRef.get();
+
       const reservedSeats = {};
-      snapshot.forEach(doc => {
-        reservedSeats[doc.id] = doc.data();
-      });
+      snapshot.forEach(doc => reservedSeats[doc.id] = doc.data());
 
       seatRows.forEach(row => {
         const rowDiv = document.createElement("div");
         rowDiv.className = "row";
+
         row.forEach(seatNum => {
           const seatDiv = document.createElement("div");
           seatDiv.className = "seat";
@@ -227,6 +184,7 @@
           seatDiv.addEventListener("click", () => reserveSeat(seatDiv));
           rowDiv.appendChild(seatDiv);
         });
+
         container.appendChild(rowDiv);
       });
     }
@@ -236,7 +194,8 @@
         const inputPw = prompt("예약 취소를 위해 비밀번호 4자리를 입력하세요:");
         if (inputPw === div.dataset.pw) {
           const todayStr = getTodayStr();
-          await db.collection("reservations").doc(todayStr).collection("seats").doc(div.dataset.number).delete();
+          const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
+          await seatsRef.doc(div.dataset.number).delete();
           alert("예약이 취소되었습니다.");
           loadSeats();
         } else {
@@ -254,9 +213,7 @@
       const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
       const snapshot = await seatsRef.get();
       const nameSet = new Set();
-      snapshot.forEach(doc => {
-        nameSet.add(doc.data().name);
-      });
+      snapshot.forEach(doc => nameSet.add(doc.data().name));
 
       const name = prompt("예약자 이름을 입력하세요:");
       if (!name) return alert("이름을 입력해야 예약할 수 있습니다.");
@@ -276,11 +233,59 @@
       loadSeats();
     }
 
-    setInterval(checkAndReset, 60000); // 1분마다 초기화 체크
-    setInterval(updateCountdown, 1000); // 1초마다 카운트다운 업데이트
+    function updateCountdown() {
+      const countdownEl = document.getElementById("countdown");
+      if (checkReservationAllowed()) {
+        countdownEl.textContent = "지금은 예약 가능한 시간입니다.";
+        return;
+      }
+
+      const now = new Date();
+      const day = now.getDay();
+      const nextTimes = [];
+
+      // 오전 예약
+      if (day >= 1 && day <= 5) {
+        const morning = new Date(now);
+        morning.setHours(9, 30, 0, 0);
+        if (now < morning) nextTimes.push(morning);
+      }
+
+      // 오후 예약
+      const evening = new Date(now);
+      if ((day === 1 || day === 3 || day === 5)) {
+        evening.setHours(19, 0, 0, 0);
+        if (now < evening) nextTimes.push(new Date(evening));
+      }
+      if ((day === 2 || day === 4)) {
+        evening.setHours(20, 0, 0, 0);
+        if (now < evening) nextTimes.push(new Date(evening));
+      }
+
+      // 다음날 오전
+      if (nextTimes.length === 0) {
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const dow = tomorrow.getDay();
+        if (dow >= 1 && dow <= 5) {
+          tomorrow.setHours(9, 30, 0, 0);
+          nextTimes.push(tomorrow);
+        }
+      }
+
+      if (nextTimes.length > 0) {
+        const next = nextTimes[0];
+        const diff = next - now;
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        countdownEl.textContent = `예약 가능까지 ${hours}시간 ${mins}분 남았습니다.`;
+      }
+    }
 
     loadSeats();
     updateCountdown();
+    setInterval(updateCountdown, 60000);
+    setInterval(checkAndReset, 60000);
   </script>
 
   <table>
