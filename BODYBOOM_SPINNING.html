@@ -96,6 +96,14 @@
     #notice li {
       margin: 5px 0;
     }
+
+    #clearTimeNotice {
+      text-align: center;
+      font-size: 1rem;
+      color: #555;
+      margin: 10px 0 20px 0;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -138,7 +146,8 @@
         currentUserUID = userCredential.user.uid;
         loadSeatsRealtime();
         updateCountdown();
-        startAutoClear();
+        setInterval(updateCountdown, 1000);
+        setInterval(autoClearReservations, 60 * 1000); // 1분마다 초기화 시도
       })
       .catch(error => {
         console.error("익명 로그인 실패:", error);
@@ -156,7 +165,7 @@
       const min = now.getMinutes();
       const totalMin = hour * 60 + min;
 
-      if (day === 0 || day === 6) return false;
+      if (day === 0 || day === 6) return false; // 주말 금지
 
       const morningStart = 10 * 60;
       const morningEnd = 11 * 60;
@@ -310,49 +319,38 @@
         `예약 가능까지 ${hours > 0 ? hours + "시간 " : ""}${minutes}분 ${seconds}초 남았습니다`;
     }
 
-    // 자동 초기화 함수
-    function startAutoClear() {
-      setInterval(() => {
-        const now = new Date();
-        const day = now.getDay();
-        if (day === 0 || day === 6) return; // 주말은 패스
+    // 오전 11:30, 오후 21:30에 예약 초기화 함수 자동 실행
+    async function autoClearReservations() {
+      const now = new Date();
+      const day = now.getDay();
+      const hour = now.getHours();
+      const min = now.getMinutes();
 
-        const hour = now.getHours();
-        const min = now.getMinutes();
+      if (day === 0 || day === 6) return; // 주말은 초기화 없음
 
-        // 오전 11시 30분 초기화
-        if (hour === 11 && min === 30) {
-          clearReservations();
-        }
-        // 오후 9시 30분 초기화
-        if (hour === 21 && min === 30) {
-          clearReservations();
-        }
-      }, 1000 * 30); // 30초마다 체크
+      // 초기화 시간 11:30 오전
+      if (hour === 11 && min === 30) {
+        await clearAllReservations();
+      }
+      // 초기화 시간 21:30 오후
+      if (hour === 21 && min === 30) {
+        await clearAllReservations();
+      }
     }
 
-    async function clearReservations() {
+    async function clearAllReservations() {
       const todayStr = getTodayStr();
       const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
       const snapshot = await seatsRef.get();
-      const batch = db.batch();
 
+      const batch = db.batch();
       snapshot.forEach(doc => {
         batch.delete(doc.ref);
       });
 
       await batch.commit();
-      alert("예약이 자동 초기화 되었습니다.");
+      alert("예약 기록이 초기화되었습니다.");
     }
-
-    // 초기화 시간 안내 표시
-    function showClearTimeNotice() {
-      const clearTimeNotice = document.getElementById("clearTimeNotice");
-      clearTimeNotice.textContent = "예약 초기화 시간: 오전 11시 30분, 오후 9시 30분";
-    }
-
-    showClearTimeNotice();
-    setInterval(updateCountdown, 1000);
   </script>
 
   <table>
@@ -386,7 +384,10 @@
     </tbody>
   </table>
 
-  <div id="clearTimeNotice" style="text-align:center; font-size:0.9rem; color:#555; margin-bottom:20px;"></div>
+  <!-- 초기화 시간 안내 -->
+  <div id="clearTimeNotice">
+    예약 초기화 시간: 오전 11시 30분, 오후 9시 30분
+  </div>
 
   <div id="notice">
     <ul>
