@@ -294,27 +294,39 @@
       const totalMinNow = hour * 60 + min;
       const totalSecNow = totalMinNow * 60 + sec;
 
+  
       const times = [];
 
-      if (day >= 1 && day <= 5) {
-        const morningStart = 10 * 60;
-        if (totalMinNow < morningStart) times.push(morningStart);
-      }
+if (day >= 1 && day <= 5) {
+  const morningStart = 10 * 60;
+  const morningEnd = 11 * 60;
+  if (totalMinNow < morningStart) {
+    times.push(morningStart);
+  } else if (totalMinNow >= morningStart && totalMinNow < morningEnd) {
+    countdown.textContent = "지금은 오전 예약 가능 시간입니다.";
+    return;
+  }
+}
 
-      if ([1, 3, 5].includes(day)) {
-        const eveningStart = 19 * 60;
-        if (totalMinNow < eveningStart) times.push(eveningStart);
-      } else if ([2, 4].includes(day)) {
-        const eveningStart = 20 * 60;
-        if (totalMinNow < eveningStart) times.push(eveningStart);
-      }
-
-      const countdown = document.getElementById("countdown");
-
-      if (times.length === 0) {
-        countdown.textContent = "지금은 예약이 불가능한 시간입니다.";
-        return;
-      }
+if ([1, 3, 5].includes(day)) {
+  const eveningStart = 19 * 60;
+  const eveningEnd = 20 * 60;
+  if (totalMinNow < eveningStart) {
+    times.push(eveningStart);
+  } else if (totalMinNow >= eveningStart && totalMinNow < eveningEnd) {
+    countdown.textContent = "지금은 오후 예약 가능 시간입니다.";
+    return;
+  }
+} else if ([2, 4].includes(day)) {
+  const eveningStart = 20 * 60;
+  const eveningEnd = 21 * 60;
+  if (totalMinNow < eveningStart) {
+    times.push(eveningStart);
+  } else if (totalMinNow >= eveningStart && totalMinNow < eveningEnd) {
+    countdown.textContent = "지금은 오후 예약 가능 시간입니다.";
+    return;
+  }
+}
 
       const next = Math.min(...times);
       const remaining = next * 60 - totalSecNow;
@@ -410,40 +422,3 @@
 </body>
 </html>
 
-
-
-
-
-
-const times = [];
-
-if (day >= 1 && day <= 5) {
-  const morningStart = 10 * 60;
-  const morningEnd = 11 * 60;
-  if (totalMinNow < morningStart) {
-    times.push(morningStart);
-  } else if (totalMinNow >= morningStart && totalMinNow < morningEnd) {
-    countdown.textContent = "지금은 오전 예약 가능 시간입니다.";
-    return;
-  }
-}
-
-if ([1, 3, 5].includes(day)) {
-  const eveningStart = 19 * 60;
-  const eveningEnd = 20 * 60;
-  if (totalMinNow < eveningStart) {
-    times.push(eveningStart);
-  } else if (totalMinNow >= eveningStart && totalMinNow < eveningEnd) {
-    countdown.textContent = "지금은 오후 예약 가능 시간입니다.";
-    return;
-  }
-} else if ([2, 4].includes(day)) {
-  const eveningStart = 20 * 60;
-  const eveningEnd = 21 * 60;
-  if (totalMinNow < eveningStart) {
-    times.push(eveningStart);
-  } else if (totalMinNow >= eveningStart && totalMinNow < eveningEnd) {
-    countdown.textContent = "지금은 오후 예약 가능 시간입니다.";
-    return;
-  }
-}
