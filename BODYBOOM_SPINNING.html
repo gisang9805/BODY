@@ -1,179 +1,411 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>스피닝 자리 예약</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BODYBOOM SPINNING 자리 예약</title>
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: #fff;
+      color: #000;
+      margin: 0;
+      padding: 0;
+    }
+
+    h2 {
       text-align: center;
-      padding: 20px;
+      font-size: 1.6rem;
+      font-weight: 900;
+      margin-top: 20px;
     }
-    .seat {
-      margin: 5px;
-      padding: 15px 25px;
-      font-size: 16px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    .seat:hover {
-      background-color: #45a049;
-    }
-    #timeRemaining {
-      margin: 20px;
-      font-size: 18px;
+
+    #countdown {
+      text-align: center;
       font-weight: bold;
+      margin-bottom: 10px;
+      color: #d32f2f;
     }
-    #login {
+
+    #container {
+      max-width: 400px;
+      margin: 20px auto;
       display: flex;
       flex-direction: column;
+      gap: 15px;
       align-items: center;
     }
-    #login input {
-      padding: 10px;
-      font-size: 16px;
-      margin-bottom: 10px;
-      width: 150px;
-      text-align: center;
+
+    .row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      min-width: 300px;
     }
-    #login button {
-      padding: 10px 20px;
-      font-size: 16px;
+
+    .seat {
+      width: 50px;
+      height: 50px;
+      background-color: #eee;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      user-select: none;
       cursor: pointer;
+      transition: background-color 0.3s;
+      position: relative;
+    }
+
+    .seat.reserved {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    .seat.disabled {
+      background-color: #f44336 !important;
+      color: white;
+    }
+
+    table {
+      border-collapse: collapse;
+      margin: 20px auto;
+      font-size: 0.75rem;
+    }
+
+    th, td {
+      border: 1px solid #333;
+      padding: 4px 6px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    #notice {
+      margin: 20px;
+      text-align: center;
+      font-size: 0.85rem;
+    }
+
+    #notice ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    #notice li {
+      margin: 5px 0;
+    }
+
+    #clearTimeNotice {
+      text-align: center;
+      font-size: 1rem;
+      color: #555;
+      margin: 10px 0 20px 0;
+      font-weight: 600;
     }
   </style>
 </head>
 <body>
-  <div id="login">
-    <h2>비밀번호를 입력하세요</h2>
-    <input type="password" id="passwordInput" maxlength="4" placeholder="4자리 비밀번호" />
-    <button onclick="checkPassword()">입장</button>
-  </div>
 
-  <div id="content" style="display:none;">
-    <h1>스피닝 자리 예약 시스템</h1>
-    <div id="timeRemaining"></div>
-    <div id="seats"></div>
+  <h2>BODYBOOM SPINNING<br />자리 예약</h2>
+  <div id="countdown"></div>
+  <div id="container"></div>
 
-    <!-- 이미지 삽입 -->
-    <div style="text-align: center; margin-top: 40px;">
-      <img src="B1BCF324-A0A3-4E81-BAA1-72FFD73216C3.jpeg" alt="자석 배치도" style="width: 100%; max-width: 700px;" />
-    </div>
-  </div>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
   <script>
-    const password = "0528";
-
-    function checkPassword() {
-      const input = document.getElementById("passwordInput").value;
-      if (input === password) {
-        document.getElementById("login").style.display = "none";
-        document.getElementById("content").style.display = "block";
-      } else {
-        alert("비밀번호가 틀렸습니다.");
-      }
+    // 페이지 진입 시 비밀번호 확인
+    const accessPw = prompt("비밀번호 4자리를 입력하세요:");
+    if (accessPw !== "0528") {
+      alert("비밀번호가 틀렸습니다. 페이지 접근이 차단됩니다.");
+      document.body.innerHTML = "<h2 style='text-align:center; margin-top:50px;'>접근 권한이 없습니다.</h2>";
+      throw new Error("비밀번호 오류로 페이지 접근 차단");
     }
 
-    const seats = 22;
-    const seatsContainer = document.getElementById("seats");
+    const firebaseConfig = {
+      apiKey: "AIzaSyB9v97oeQISiV1P3k6EeFl_n0zeRv-aMsE",
+      authDomain: "spinning-120fe.firebaseapp.com",
+      projectId: "spinning-120fe",
+      storageBucket: "spinning-120fe.appspot.com",
+      messagingSenderId: "246146727087",
+      appId: "1:246146727087:web:94ae386984114c478c285a",
+      measurementId: "G-KX06T2G2E2"
+    };
 
-    for (let i = 1; i <= seats; i++) {
-      const button = document.createElement("button");
-      button.innerText = `${i}번 자리 예약`;
-      button.className = "seat";
-      button.onclick = () => reserveSeat(i);
-      seatsContainer.appendChild(button);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const container = document.getElementById("container");
+    const seatRows = [
+      [1, 2, 3, 4, 5],
+      [6, 7, 8, 9, 10, 11],
+      [12, 13, 14, 15, 16, 17],
+      [18, 19, 20, 21, 22]
+    ];
+
+    let currentUserUID = null;
+
+    firebase.auth().signInAnonymously()
+      .then(userCredential => {
+        currentUserUID = userCredential.user.uid;
+        loadSeatsRealtime();
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+        setInterval(autoClearReservations, 60 * 1000); // 1분마다 초기화 시도
+      })
+      .catch(error => {
+        console.error("익명 로그인 실패:", error);
+        alert("인증 실패: 페이지를 새로고침 해주세요.");
+      });
+
+    function getTodayStr() {
+      return new Date().toISOString().slice(0, 10);
     }
 
-    function reserveSeat(seatNumber) {
-      if (!isReservationTime()) {
-        alert("아직 예약 시간이 아닙니다.");
-        return;
-      }
-      alert(`${seatNumber}번 자리를 예약했습니다.`);
-    }
-
-    function isReservationTime() {
+    function checkReservationAllowed() {
       const now = new Date();
-      const day = now.getDay(); // 0(일) ~ 6(토)
-      const hours = now.getHours();
-      const minutes = now.getMinutes();
+      const day = now.getDay(); // 0:일 ~ 6:토
+      const hour = now.getHours();
+      const min = now.getMinutes();
+      const totalMin = hour * 60 + min;
 
-      // 오전 예약 시간 (월~금 9:30~10:30)
-      if (day >= 1 && day <= 5 && (hours === 9 && minutes >= 30 || hours === 10 && minutes < 30)) {
-        return true;
+      if (day === 0 || day === 6) return false; // 주말 금지
+
+      const morningStart = 10 * 60;
+      const morningEnd = 11 * 60;
+      if (totalMin >= morningStart && totalMin < morningEnd) return true;
+
+      if ([1, 3, 5].includes(day)) {
+        const eveningStart = 19 * 60;
+        const eveningEnd = 20 * 60;
+        if (totalMin >= eveningStart && totalMin < eveningEnd) return true;
+      } else if ([2, 4].includes(day)) {
+        const eveningStart = 20 * 60;
+        const eveningEnd = 21 * 60;
+        if (totalMin >= eveningStart && totalMin < eveningEnd) return true;
       }
-
-      // 오후 예약 시간: 월수금 19:00~20:00 / 화목 20:00~21:00
-      if ((day === 1 || day === 3 || day === 5) && hours === 19) return true;
-      if ((day === 2 || day === 4) && hours === 20) return true;
 
       return false;
     }
 
-    function updateTimeRemaining() {
+    function loadSeatsRealtime() {
+      const todayStr = getTodayStr();
+      const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
+      seatsRef.onSnapshot(snapshot => {
+        const reservedSeats = {};
+        snapshot.forEach(doc => {
+          reservedSeats[doc.id] = doc.data();
+        });
+        renderSeats(reservedSeats);
+      });
+    }
+
+    function renderSeats(reservedSeats) {
+      container.innerHTML = "";
+      const allowed = checkReservationAllowed();
+
+      seatRows.forEach(row => {
+        const rowDiv = document.createElement("div");
+        rowDiv.className = "row";
+
+        row.forEach(seatNum => {
+          const seatDiv = document.createElement("div");
+          seatDiv.className = "seat";
+          seatDiv.dataset.number = seatNum;
+          seatDiv.textContent = seatNum;
+
+          if (!allowed) {
+            seatDiv.classList.add("disabled");
+          }
+
+          if (reservedSeats[seatNum]) {
+            seatDiv.classList.add("reserved");
+            seatDiv.textContent = reservedSeats[seatNum].name;
+            seatDiv.dataset.name = reservedSeats[seatNum].name;
+            seatDiv.dataset.pw = reservedSeats[seatNum].pw;
+            seatDiv.dataset.uid = reservedSeats[seatNum].uid;
+          }
+
+          seatDiv.addEventListener("click", () => reserveSeat(seatDiv, allowed));
+          rowDiv.appendChild(seatDiv);
+        });
+
+        container.appendChild(rowDiv);
+      });
+    }
+
+    async function reserveSeat(div, allowed) {
+      const seatNum = div.dataset.number;
+      const todayStr = getTodayStr();
+      const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
+
+      if (div.classList.contains("reserved")) {
+        const inputPw = prompt("예약 취소를 위해 비밀번호 4자리를 입력하세요:");
+        if (inputPw === div.dataset.pw) {
+          await seatsRef.doc(seatNum).delete();
+          alert("예약이 취소되었습니다.");
+        } else {
+          alert("비밀번호가 틀렸습니다.");
+        }
+        return;
+      }
+
+      if (!allowed) {
+        alert("지금은 예약 시간이 아닙니다.");
+        return;
+      }
+
+      const snapshot = await seatsRef.get();
+      let alreadyReserved = null;
+      snapshot.forEach(doc => {
+        if (doc.data().uid === currentUserUID) {
+          alreadyReserved = doc.id;
+        }
+      });
+
+      if (alreadyReserved) {
+        alert(`이미 예약한 자리가 있습니다. (좌석 번호: ${alreadyReserved})`);
+        return;
+      }
+
+      const name = prompt("예약자 이름을 입력하세요:");
+      if (!name) return alert("이름을 입력해야 예약할 수 있습니다.");
+
+      let pw;
+      do {
+        pw = prompt("예약 비밀번호 4자리를 숫자로 입력하세요:");
+        if (pw === null) return alert("비밀번호를 입력해야 예약할 수 있습니다.");
+      } while (!/^\d{4}$/.test(pw));
+
+      await seatsRef.doc(seatNum).set({ name, pw, uid: currentUserUID });
+      alert("예약이 완료되었습니다.");
+    }
+
+    function updateCountdown() {
       const now = new Date();
       const day = now.getDay();
-      const currentTime = now.getTime();
-      let target;
+      const hour = now.getHours();
+      const min = now.getMinutes();
+      const sec = now.getSeconds();
+      const totalMinNow = hour * 60 + min;
+      const totalSecNow = totalMinNow * 60 + sec;
 
-      // 오전 예약 타임
+      const times = [];
+
       if (day >= 1 && day <= 5) {
-        const startMorning = new Date();
-        startMorning.setHours(9, 30, 0, 0);
-        const endMorning = new Date();
-        endMorning.setHours(10, 30, 0, 0);
-        if (currentTime < startMorning.getTime()) {
-          target = startMorning;
-        } else if (currentTime < endMorning.getTime()) {
-          document.getElementById("timeRemaining").innerText = "지금은 예약이 가능한 시간입니다.";
-          return;
-        }
+        const morningStart = 10 * 60;
+        if (totalMinNow < morningStart) times.push(morningStart);
       }
 
-      // 오후 예약 타임
-      if (day === 1 || day === 3 || day === 5) {
-        const startAfternoon = new Date();
-        startAfternoon.setHours(19, 0, 0, 0);
-        const endAfternoon = new Date();
-        endAfternoon.setHours(20, 0, 0, 0);
-        if (currentTime < startAfternoon.getTime()) {
-          target = startAfternoon;
-        } else if (currentTime < endAfternoon.getTime()) {
-          document.getElementById("timeRemaining").innerText = "지금은 예약이 가능한 시간입니다.";
-          return;
-        }
+      if ([1, 3, 5].includes(day)) {
+        const eveningStart = 19 * 60;
+        if (totalMinNow < eveningStart) times.push(eveningStart);
+      } else if ([2, 4].includes(day)) {
+        const eveningStart = 20 * 60;
+        if (totalMinNow < eveningStart) times.push(eveningStart);
       }
 
-      if (day === 2 || day === 4) {
-        const startAfternoon = new Date();
-        startAfternoon.setHours(20, 0, 0, 0);
-        const endAfternoon = new Date();
-        endAfternoon.setHours(21, 0, 0, 0);
-        if (currentTime < startAfternoon.getTime()) {
-          target = startAfternoon;
-        } else if (currentTime < endAfternoon.getTime()) {
-          document.getElementById("timeRemaining").innerText = "지금은 예약이 가능한 시간입니다.";
-          return;
-        }
+      const countdown = document.getElementById("countdown");
+
+      if (times.length === 0) {
+        countdown.textContent = "지금은 예약이 불가능한 시간입니다.";
+        return;
       }
 
-      if (target) {
-        const diff = target.getTime() - currentTime;
-        const hours = Math.floor(diff / 3600000);
-        const minutes = Math.floor((diff % 3600000) / 60000);
-        const seconds = Math.floor((diff % 60000) / 1000);
-        document.getElementById("timeRemaining").innerText =
-          `예약 가능 시간까지 ${hours}시간 ${minutes}분 ${seconds}초 남음`;
-      } else {
-        document.getElementById("timeRemaining").innerText = "예약 가능한 시간이 아닙니다.";
+      const next = Math.min(...times);
+      const remaining = next * 60 - totalSecNow;
+
+      const hours = Math.floor(remaining / 3600);
+      const minutes = Math.floor((remaining % 3600) / 60);
+      const seconds = remaining % 60;
+
+      countdown.textContent =
+        `예약 가능까지 ${hours > 0 ? hours + "시간 " : ""}${minutes}분 ${seconds}초 남았습니다`;
+    }
+
+    // 오전 11:30, 오후 21:30에 예약 초기화 함수 자동 실행
+    async function autoClearReservations() {
+      const now = new Date();
+      const day = now.getDay();
+      const hour = now.getHours();
+      const min = now.getMinutes();
+
+      if (day === 0 || day === 6) return; // 주말은 초기화 없음
+
+      // 초기화 시간 11:30 오전
+      if (hour === 11 && min === 30) {
+        await clearAllReservations();
+      }
+      // 초기화 시간 21:30 오후
+      if (hour === 21 && min === 30) {
+        await clearAllReservations();
       }
     }
 
-    setInterval(updateTimeRemaining, 1000);
+    async function clearAllReservations() {
+      const todayStr = getTodayStr();
+      const seatsRef = db.collection("reservations").doc(todayStr).collection("seats");
+      const snapshot = await seatsRef.get();
+
+      const batch = db.batch();
+      snapshot.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+      alert("예약 기록이 초기화되었습니다.");
+    }
   </script>
+
+  <table>
+    <thead>
+      <tr>
+        <th>수업시간</th>
+        <th>월</th>
+        <th>화</th>
+        <th>수</th>
+        <th>목</th>
+        <th>금</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>오전</td>
+        <td>10시</td>
+        <td>10시</td>
+        <td>10시</td>
+        <td>10시</td>
+        <td>10시</td>
+      </tr>
+      <tr>
+        <td>오후</td>
+        <td>7시 30분</td>
+        <td>8시 30분</td>
+        <td>7시 30분</td>
+        <td>8시 30분</td>
+        <td>7시 30분</td>
+      </tr>
+    </tbody>
+  </table>
+  
+  <div id="notice">
+    <ul>
+      <li>스피닝 자리예약은 수업 30분 전부터 가능합니다.</li>
+      <li>수업시간에 늦을 경우 빈자리에 착석 가능합니다.</li>
+      <li>--------------------------------------</li>
+      <li>예약 프로그램에 문제가 있는 경우</li>
+      <li>최기상 트레이너에게 말씀해주세요!!</li>
+    </ul>
+  </div>
+
+  <!-- 초기화 시간 안내 -->
+  <div id="clearTimeNotice">
+    예약 초기화 시간: 오전 11시 30분, 오후 9시 30분
+  </div>
+
 </body>
 </html>
