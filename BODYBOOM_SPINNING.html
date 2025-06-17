@@ -326,6 +326,11 @@ if ([1, 3, 5].includes(day)) {
     countdown.textContent = "지금은 오후 예약 가능 시간입니다.";
     return;
   }
+  const countdown = document.getElementByld("countdown");
+  if(times.length===0){
+    countdown.textContent = "지금은 예약이 불가능한 시간입니다.";
+    return;
+  }
 }
 
       const next = Math.min(...times);
