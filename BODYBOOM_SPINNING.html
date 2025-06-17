@@ -327,18 +327,27 @@
       countdown.textContent = `예약 가능까지 ${hours > 0 ? hours + "시간 " : ""}${minutes}분 ${seconds}초 남았습니다`;
     }
 
-    async function autoClearReservations() {
-      const now = new Date();
-      const day = now.getDay();
-      const hour = now.getHours();
-      const min = now.getMinutes();
+    let lastClearTime = null;
 
-      if (day === 0 || day === 6) return;
+async function autoClearReservations() {
+  const now = new Date();
+  const day = now.getDay();
+  const hour = now.getHours();
+  const min = now.getMinutes();
 
-      if ((hour === 11 && min === 30) || (hour === 21 && min === 30)) {
-        await clearAllReservations();
-      }
-    }
+  if (day === 0 || day === 6) return;
+
+  const currentTimeStr = `${hour}:${min}`;
+  if (lastClearTime === currentTimeStr) return; // 중복 방지
+
+  if (
+    (hour === 0 && min >= 28 && min < 31) ||
+    (hour === 21 && min >= 30 && min < 31)
+  ) {
+    await clearAllReservations();
+    lastClearTime = currentTimeStr;
+  }
+}
 
     async function clearAllReservations() {
       const todayStr = getTodayStr();
