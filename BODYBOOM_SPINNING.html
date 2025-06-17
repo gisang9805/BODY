@@ -335,17 +335,23 @@ async function autoClearReservations() {
   const hour = now.getHours();
   const min = now.getMinutes();
 
-  if (day === 0 || day === 6) return;
+  if (day === 0 || day === 6) return; // 주말 제외
 
   const currentTimeStr = `${hour}:${min}`;
-  if (lastClearTime === currentTimeStr) return; // 중복 방지
 
-  if (
-    (hour === 0 && min >= 28 && min < 31) ||
-    (hour === 21 && min >= 30 && min < 31)
-  ) {
+  // 이미 오늘 초기화 한 경우 중복 실행 방지
+  if (lastClearTime === currentTimeStr) return;
+
+  // 11:30 ~ 18:29 사이 초기화 조건
+  const isMorningRange = (hour > 11 && hour < 18) || (hour === 11 && min >= 30) || (hour === 18 && min < 30);
+
+  // 21:30 ~ 다음날 9:29 사이 초기화 조건
+  // 밤 시간대는 21시30분~23시59분 or 0시~9시29분
+  const isNightRange = (hour > 21) || (hour === 21 && min >= 30) || (hour < 9) || (hour === 9 && min < 30);
+
+  if (isMorningRange || isNightRange) {
     await clearAllReservations();
-    lastClearTime = currentTimeStr;
+    lastClearTime = currentTimeStr; // 중복 방지용 기록
   }
 }
 
