@@ -348,22 +348,18 @@
 }
     // 오전 11:30, 오후 21:30에 예약 초기화 함수 자동 실행
     async function autoClearReservations() {
-      const now = new Date();
-      const day = now.getDay();
-      const hour = now.getHours();
-      const min = now.getMinutes();
+  const now = new Date();
+  const day = now.getDay();
+  const hour = now.getHours();
+  const min = now.getMinutes();
+  const sec = now.getSeconds();
 
-      if (day === 0 || day === 6) return; // 주말은 초기화 없음
+  if (day === 0 || day === 6) return; // 주말 제외
 
-      // 초기화 시간 11:30 오전
-      if (hour === 11 && min === 30) {
-        await clearAllReservations();
-      }
-      // 초기화 시간 21:30 오후
-      if (hour === 21 && min === 30) {
-        await clearAllReservations();
-      }
-    }
+  if ((hour === 11 && min === 30 && sec < 5) || (hour === 21 && min === 30 && sec < 5)) {
+    await clearAllReservations();
+  }
+}
 
     async function clearAllReservations() {
       const todayStr = getTodayStr();
