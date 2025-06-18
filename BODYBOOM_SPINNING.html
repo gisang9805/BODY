@@ -160,7 +160,7 @@
 
       if (day === 0 || day === 6) return false;
 
-      const morningStart = 9 * 60 + 30;
+      const morningStart = 9 * 60;
       const morningEnd = 10 * 60 + 30;
       if (totalMin >= morningStart && totalMin < morningEnd) return true;
 
@@ -283,7 +283,7 @@
       const times = [];
 
       if (day >= 1 && day <= 5) {
-        const morningStart = 9 * 60 + 30;
+        const morningStart = 9 * 60;
         const morningEnd = 10 * 60 + 30;
         if (totalMinNow < morningStart) {
           times.push(morningStart);
@@ -403,11 +403,11 @@ async function autoClearReservations() {
 
   <div id="notice">
     <ul>
-      <li>스피닝 자리예약은 수업 30분 전부터 가능합니다.</li>
+      <li>스피닝 오전 자리예약은 수업 1시간 전부터 가능합니다.</li>
+      <li>스피닝 오후 자리예약은 수업 30분 전부터 가능합니다.</li>
       <li>수업시간에 늦을 경우 빈자리에 착석 가능합니다.</li>
       <li>--------------------------------------</li>
       <li>예약 프로그램에 문제가 있는 경우</li>
-      <li>최기상 트레이너에게 말씀해주세요!!</li>
     </ul>
   </div>
   <div style="text-align: center; margin-top: 30px;">
